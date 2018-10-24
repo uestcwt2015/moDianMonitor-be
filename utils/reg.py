@@ -22,3 +22,5 @@ def getHtmlFromRespones(res):
 def getUidFromStr(url):
     pattern = re.compile(r'[0-9]+')
     return pattern.findall(url)[0]
+
+

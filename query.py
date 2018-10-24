@@ -1,19 +1,25 @@
 # -*- coding: UTF-8 -*-
 import requests
+import time
 from bs4 import BeautifulSoup
 import json
 
 from utils.reg import getIdFromURL, getMoneyFromText, getHtmlFromRespones, getUidFromStr
+from utils.sql import createDatabase, createTable, insertData, updateData, queryData
 
 configDict = {
     'name': '李梓',
-    'url': 'https://zhongchou.modian.com/item/22903.html'
+    'url': 'https://zhongchou.modian.com/item/35422.html',
+    'db_name': 'test'
 }
 
 itemId = getIdFromURL(configDict['url'])
 
 html = requests.get(configDict['url'])
 html.encoding = 'utf-8'
+
+createDatabase(configDict['db_name'])
+# createTable('SUPPORTER1')
 
 def getPageInfo():
     bs = BeautifulSoup(html.text, 'lxml')
@@ -23,7 +29,7 @@ def getPageInfo():
     endtime = bs.find('div', class_='remain-time').find('h3')
     supporter = bs.find('div', class_='support-people').find('span')
     curr = project.select('h3')[0].select('span')[0]
-    
+    print (supporter)
     return {
         'total': getMoneyFromText(total.text),
         'curr': getMoneyFromText(curr.text),
@@ -34,13 +40,12 @@ def getPageInfo():
 def getSuplist(pageNum):
     global itemId
     pageId = 1
+    
     while (pageId <= pageNum):
-        supurl = 'https://zhongchou.modian.com/realtime/ajax_dialog_user_list?jsonpcallback=jQuery1111042386962771442716_1540221823108&origin_id=%s&type=backer_list&page=%s&page_size=20' % (itemId, pageId)
-        # print (supurl)
+        supurl = 'https://zhongchou.modian.com/realtime/ajax_dialog_user_list?jsonpcallback=jQuery1111002346235587384804_1540366100896&origin_id=%s&type=backer_list&page=%s&page_size=20' % (itemId, pageId)
         res = requests.get(supurl)
         html = getHtmlFromRespones(res)
         getSupInfo(html)
-        # break
         pageId += 1
 
 def getSupInfo(text):
@@ -52,8 +57,22 @@ def getSupInfo(text):
         uid = getUidFromStr(dataHref)
         name = conts[0].text
         count = getMoneyFromText(conts[1].text)
-        print (uid, name, count)
-        # break
+        
+        # 查询并插入或者更新
+        queryRes = queryData(uid)
+        if queryRes == 'null':
+            insertData(uid, name, count)
+        else:
+            s_name = queryRes[0]
+            s_count = queryRes[1]
 
-pageInfo = getPageInfo()
-getSuplist(int(pageInfo["supporter"]) / 20 + 1)
+            if s_name != name:
+                updateData('name', name, uid)
+            if s_count != count:
+                updateData('count', count, uid)
+
+while True:
+    print ('-----------round-----------')
+    pageInfo = getPageInfo()
+    getSuplist(int(pageInfo["supporter"]) / 20 + 1)
+    time.sleep(10)
